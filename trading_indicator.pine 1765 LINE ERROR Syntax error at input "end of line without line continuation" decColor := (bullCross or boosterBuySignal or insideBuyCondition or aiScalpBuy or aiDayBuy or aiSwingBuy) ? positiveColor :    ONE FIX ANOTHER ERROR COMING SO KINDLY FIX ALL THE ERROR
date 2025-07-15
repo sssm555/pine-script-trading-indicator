@@ -1,0 +1,1805 @@
+//@version=6
+indicator("SSS™ The Infinite 7B V400", overlay=true, max_labels_count=500)
+
+// Initialize variables properly
+var bool curveValid = false
+var string curveType = ""
+
+// === MODE SELECTION (SIMPLIFIED) ===
+dualModeEnabled = input.bool(false, title="Enable Dual Mode Analysis", group="Mode Selection")
+scriptMode = dualModeEnabled ? "Dual Mode" : "Single Mode"
+
+// === DISPLAY SETTINGS ===
+showEMASignals = input.bool(true, title="Show EMA Cross Signals", group="Display Settings")
+showBullBearEngulfing = input.bool(true, title="Show Bullish/Bearish Engulfing", group="Display Settings")
+show7Booster = input.bool(true, title="Show 7-Booster Signals", group="Display Settings")
+showTrapWarnings = input.bool(true, title="Show Trap Warnings", group="Display Settings")
+showDashboard = input.bool(true, title="Show Dashboard", group="Display Settings")
+showWinRate = input.bool(true, title="Show Win Rate", group="Display Settings")
+showWilliamsR = input.bool(true, title="Show Williams %R", group="Display Settings")
+showDisclaimer = input.bool(true, title="Show Disclaimer Watermark", group="Display Settings")
+showExitSignals = input.bool(true, title="Show Exit Signals", group="Display Settings")
+showTimeMarkers = input.bool(true, title="Show Time Markers (9:20, 9:45, 1:00)", group="Display Settings")
+
+// === INSIDE BAR SETTINGS ===
+showInsideBarSignals = input.bool(true, title="Enable Inside Bar Signals", group="Inside Bar Settings")
+showInsideBars = input.bool(true, title="Show Inside Bar Coloring", group="Inside Bar Settings")
+showInsideBarBreakout = input.bool(true, title="Show Inside Bar Buy/Sell Signals", group="Inside Bar Settings")
+showInsideBarLines = input.bool(true, title="Show Inside Bar Breakout Lines", group="Inside Bar Settings")
+strongInsideThreshold = input.float(0.3, title="Strong Inside Bar Threshold (0.1-0.5)", minval=0.1, maxval=0.5, group="Inside Bar Settings")
+
+// === AI CLOUD SETTINGS ===
+showAICloud = input.bool(true, title="Enable AI Cloud Signals", group="AI Cloud Settings")
+aiSensitivity = input.float(1, title="AI Sensitivity - 'Neural Network Multiplier'", minval=0.1, maxval=5.0, group="AI Cloud Settings")
+aiATRPeriod = input.int(10, title="ATR Period - 'AI Learning Window'", minval=1, maxval=50, group="AI Cloud Settings")
+aiHeikinMode = input.bool(false, title="Heikin Ashi Mode - 'Enhanced Signal Processing'", group="AI Cloud Settings")
+aiCloudOpacity = input.int(85, title="Cloud Opacity", minval=0, maxval=100, group="AI Cloud Settings")
+aiShadowIntensity = input.float(2.0, title="Shadow Signal Intensity", minval=0.5, maxval=5.0, group="AI Cloud Settings")
+aiSmoothingFactor = input.int(3, title="AI Smoothing Factor", minval=1, maxval=10, group="AI Cloud Settings")
+
+// === AI INTRADAY SETTINGS ===
+aiIntradayMode = input.bool(true, title="🕐 Enable Intraday Mode", group="AI Intraday")
+aiScalping = input.bool(false, title="⚡ Scalping Mode (Ultra-Fast Signals)", group="AI Intraday")
+aiDayTrading = input.bool(true, title="📊 Day Trading Mode", group="AI Intraday")
+aiSwingIntraday = input.bool(false, title="🔄 Swing Intraday Mode", group="AI Intraday")
+aiIntradayRisk = input.float(1.5, title="Intraday Risk Multiplier", minval=0.5, maxval=3.0, group="AI Intraday")
+aiQuickExit = input.bool(true, title="⚡ Quick Exit Signals", group="AI Intraday")
+aiSessionFilter = input.bool(true, title="🕐 Session Time Filter", group="AI Intraday")
+aiMarketSession = input.session("0930-1530", title="Market Session (Local Time)", group="AI Intraday")
+
+// === RSI DIVERGENCE BREAKOUT SETTINGS ===
+showRSIDivergence = input.bool(true, title="Show RSI Divergence Breakout", group="RSI Divergence")
+rsiDivPeriod = input.int(14, title="RSI Period", minval=5, maxval=50, group="RSI Divergence")
+rsiDivLookback = input.int(20, title="Divergence Lookback", minval=10, maxval=50, group="RSI Divergence")
+
+// === SUPPORT & RESISTANCE SETTINGS ===
+showSupportResistance = input.bool(true, title="Show Support & Resistance Lines", group="Support & Resistance")
+showYearlyOpen = input.bool(true, title="Show Yearly Open", group="Support & Resistance")
+showMonthlyOpen = input.bool(true, title="Show Monthly Open", group="Support & Resistance")
+showWeeklyOpen = input.bool(true, title="Show Weekly Open", group="Support & Resistance")
+showDailyOpen = input.bool(true, title="Show Daily Open", group="Support & Resistance")
+show4HOpen = input.bool(true, title="Show 4H Open", group="Support & Resistance")
+show1HOpen = input.bool(true, title="Show 1H Open", group="Support & Resistance")
+show15MOpen = input.bool(true, title="Show 15M Open", group="Support & Resistance")
+
+// === HARMONIC PATTERN SETTINGS (ONLY ABCD) ===
+showABCD = input.bool(true, title="Show ABCD Pattern", group="Harmonic Patterns")
+harmonicColor = input.color(color.blue, title="Harmonic Pattern Color", group="Harmonic Patterns")
+harmonicLineWidth = input.int(1, title="Harmonic Line Width", minval=1, maxval=5, group="Harmonic Patterns")
+
+// === CURVE & TREND SETTINGS ===
+showCurvePattern = input.bool(true, title="Show Curve Patterns", group="Curve & Trend")
+showTrendAngle = input.bool(true, title="Show Trend Angle", group="Curve & Trend")
+curveColor = input.color(color.blue, title="Curve Pattern Color", group="Curve & Trend")
+trendAngleColor = input.color(color.blue, title="Trend Angle Color", group="Curve & Trend")
+trendAnglePeriod = input.int(20, title="Trend Angle Period", minval=5, maxval=100, group="Curve & Trend")
+
+// === PARALLEL CHANNEL SETTINGS ===
+showParallelChannel = input.bool(true, title="Show Parallel Channel", group="Parallel Channel")
+channelLookback = input.int(100, title="Channel Lookback Period", minval=20, maxval=500, group="Parallel Channel")
+channelDeviation = input.float(2.0, title="Channel Deviation Multiplier", minval=0.5, maxval=5.0, step=0.1, group="Parallel Channel")
+upperChannelColor = input.color(color.new(color.blue, 70), title="Upper Channel Color", group="Parallel Channel")
+lowerChannelColor = input.color(color.new(color.blue, 70), title="Lower Channel Color", group="Parallel Channel")
+midChannelColor = input.color(color.new(color.blue, 50), title="Middle Channel Color", group="Parallel Channel")
+channelFillColor = input.color(color.new(color.blue, 95), title="Channel Fill Color", group="Parallel Channel")
+showChannelBreakouts = input.bool(true, title="Show Channel Breakouts", group="Parallel Channel")
+channelLineWidth = input.int(1, title="Channel Line Width", minval=1, maxval=5, group="Parallel Channel")
+
+// === REGRESSION TREND SETTINGS ===
+showRegressionTrend = input.bool(true, title="Show Regression Trend", group="Regression Trend")
+regressionLength = input.int(50, title="Regression Period", minval=10, maxval=200, group="Regression Trend")
+regressionDeviations = input.float(2.0, title="Standard Deviations", minval=0.5, maxval=4.0, step=0.1, group="Regression Trend")
+showRegressionChannels = input.bool(true, title="Show Regression Channels", group="Regression Trend")
+regressionColor = input.color(color.blue, title="Regression Line Color", group="Regression Trend")
+upperRegressionColor = input.color(color.new(color.blue, 70), title="Upper Regression Color", group="Regression Trend")
+lowerRegressionColor = input.color(color.new(color.blue, 70), title="Lower Regression Color", group="Regression Trend")
+regressionFillColor = input.color(color.new(color.blue, 90), title="Regression Fill Color", group="Regression Trend")
+showRegressionPearson = input.bool(true, title="Show Pearson R Value", group="Regression Trend")
+regressionLineWidth = input.int(1, title="Regression Line Width", minval=1, maxval=5, group="Regression Trend")
+regressionExtend = input.bool(false, title="Extend Regression Lines", group="Regression Trend")
+
+// === LEADING INDICATORS SETTINGS ===
+showOBV = input.bool(false, title="Show OBV", group="Leading Indicators")
+showVWAP = input.bool(false, title="Show VWAP", group="Leading Indicators")
+showOrderBlocks = input.bool(false, title="Show Order Blocks", group="Leading Indicators")
+obvColor = input.color(color.purple, title="OBV Color", group="Leading Indicators")
+vwapColor = input.color(color.orange, title="VWAP Color", group="Leading Indicators")
+orderBlockBullColor = input.color(color.new(color.green, 80), title="Bullish Order Block Color", group="Leading Indicators")
+orderBlockBearColor = input.color(color.new(color.red, 80), title="Bearish Order Block Color", group="Leading Indicators")
+
+// === DASHBOARD CUSTOMIZATION ===
+dashboardPosition = input.string("top_right", "Dashboard Position", options=["top_left", "top_right", "bottom_left", "bottom_right"], group="Dashboard Customization")
+dashboardOpacity = input.int(80, "Dashboard Opacity %", minval=0, maxval=100, group="Dashboard Customization")
+dashboardTextSize = input.string("normal", "Text Size", options=["tiny", "small", "normal", "large"], group="Dashboard Customization")
+dashboardTheme = input.string("auto", "Dashboard Theme", options=["auto", "dark", "light"], group="Dashboard Customization")
+dashboardOffset = input.int(0, "Vertical Offset", minval=-50, maxval=50, group="Dashboard Customization")
+
+// Auto-detect background and set colors accordingly
+isDarkMode = dashboardTheme == "dark" or (dashboardTheme == "auto" and color.r(chart.bg_color) < 128)
+dashboardBgColor = isDarkMode ? color.new(color.black, 10) : color.new(color.white, 10)
+dashboardTextColor = isDarkMode ? color.white : color.black
+dashboardBorderColor = isDarkMode ? color.new(color.gray, 20) : color.new(color.gray, 80)
+dashboardHeaderBg = isDarkMode ? color.new(#1e3a5f, 30) : color.new(#4a90e2, 30)
+
+// === DISTANCE SETTINGS ===
+signalDistance = input.float(0.2, title="Signal Distance % (Level 1)", minval=0.1, maxval=5.0, step=0.1, group="Distance Settings")
+trapDistance = input.float(2.0, title="Trap Warning Distance % (Level 4)", minval=0.1, maxval=5.0, step=0.1, group="Distance Settings")
+patternDistance = input.float(2.5, title="Pattern Distance % (Level 5)", minval=0.1, maxval=5.0, step=0.1, group="Distance Settings")
+boosterDistance = input.float(3.0, title="7-Booster Distance % (Furthest)", minval=0.1, maxval=5.0, step=0.1, group="Distance Settings")
+
+// === STRATEGY PARAMETERS ===
+atrMultiplier = input.float(1.5, title="ATR Multiplier for SL", group="Strategy Settings")
+minBoosters = input.int(7, title="Min Boosters for Signal (1-14)", minval=1, maxval=14, group="Strategy Settings")
+
+// Fixed EMA periods (hidden from settings)
+ema9Length = 9
+ema21Length = 21
+
+// === MODE 2 SPECIFIC SETTINGS ===
+mode2EMAPeriod1 = input.int(5, title="Mode 2 Fast EMA", group="Mode 2 Settings")
+mode2EMAPeriod2 = input.int(39, title="Mode 2 Slow EMA", group="Mode 2 Settings")
+mode2MinBoosters = input.int(8, title="Mode 2 Min Boosters", minval=1, maxval=14, group="Mode 2 Settings")
+
+// === CALCULATIONS ===
+// Calculate both modes
+ema9_mode1 = ta.ema(close, ema9Length)
+ema21_mode1 = ta.ema(close, ema21Length)
+ema9_mode2 = ta.ema(close, mode2EMAPeriod1)
+ema21_mode2 = ta.ema(close, mode2EMAPeriod2)
+
+// Use appropriate EMAs based on mode for plotting
+ema9 = dualModeEnabled ? ema9_mode2 : ema9_mode1
+ema21 = dualModeEnabled ? ema21_mode2 : ema21_mode1
+
+// Plot EMAs
+plot(ema9, color=color.blue, linewidth=2, title="EMA 9")
+plot(ema21, color=color.red, linewidth=2, title="EMA 21")
+
+atr = ta.atr(14)
+sma20 = ta.sma(close, 20)
+sma50 = ta.sma(close, 50)
+
+// === LEADING INDICATORS ===
+// VWAP
+vwapValue = ta.vwap(hlc3)
+plot(showVWAP ? vwapValue : na, color=vwapColor, linewidth=1, title="VWAP", style=plot.style_line)
+
+// OBV (On Balance Volume)
+obv = ta.cum(volume * (close > close[1] ? 1 : close < close[1] ? -1 : 0))
+obvMA = ta.sma(obv, 20)
+obvBullish = obv > obvMA
+
+// Volume calculations (moved up for Inside Bar logic)
+volSMA = ta.sma(volume, 20)
+volumeRatio = volume / volSMA
+
+// Order Blocks Detection
+var box bullishOB = na
+var box bearishOB = na
+
+// Detect Order Blocks (simplified institutional levels)
+orderBlockLookback = 10
+isSwingHigh = high[1] == ta.highest(high, orderBlockLookback)
+isSwingLow = low[1] == ta.lowest(low, orderBlockLookback)
+
+// Bullish Order Block (support)
+if showOrderBlocks and isSwingLow and close > open and volume > volSMA
+    if not na(bullishOB)
+        box.delete(bullishOB)
+    bullishOB := box.new(bar_index[1], high[1], bar_index + 50, low[1], bgcolor=orderBlockBullColor, border_color=color.new(color.green, 50), border_width=1, extend=extend.right)
+
+// Bearish Order Block (resistance)
+if showOrderBlocks and isSwingHigh and close < open and volume > volSMA
+    if not na(bearishOB)
+        box.delete(bearishOB)
+    bearishOB := box.new(bar_index[1], high[1], bar_index + 50, low[1], bgcolor=orderBlockBearColor, border_color=color.new(color.red, 50), border_width=1, extend=extend.right)
+
+// === INDICATOR CALCULATIONS ===
+// 1. ADX
+[diPlus, diMinus, adx] = ta.dmi(14, 14)
+adxAbove20 = adx > 20
+
+// 2. RSI
+rsi = ta.rsi(close, 14)
+rsiBullish = (rsi > 50) and (rsi < 70)
+rsiBearish = (rsi < 50) and (rsi > 30)
+
+// 3. Supertrend
+[supertrend, direction] = ta.supertrend(3.0, 10)
+supertrendBuy = direction < 0
+
+// 4. Volume
+volumeHigh = volume > volSMA * 1.5
+
+// 5. ATR
+atrActive = atr > ta.sma(atr, 20)
+
+// 6. MACD
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+macdBullish = macdLine > signalLine
+
+// 7. SMAs
+smaBullish = sma20 > sma50
+
+// 8. Williams %R
+wpr = ta.wpr(14)
+wprOversold = wpr < -80
+
+// 9. Fibonacci
+highPeriod = ta.highest(high, 50)
+lowPeriod = ta.lowest(low, 50)
+fib618 = lowPeriod + (highPeriod - lowPeriod) * 0.618
+fib382 = lowPeriod + (highPeriod - lowPeriod) * 0.382
+inGoldenZone = close > fib382 and close < fib618
+
+// === CANDLESTICK PATTERNS (ONLY ENGULFING) ===
+body = math.abs(open - close)
+body1 = math.abs(open[1] - close[1])
+
+// Pattern Detection (Only Engulfing)
+is_bullish_engulfing = (close > open) and (close[1] < open[1]) and (open <= close[1]) and (close >= open[1]) and (body > body1)
+is_bearish_engulfing = (close < open) and (close[1] > open[1]) and (open >= close[1]) and (close <= open[1]) and (body > body1)
+
+// === INSIDE BAR DETECTION AND LOGIC ===
+// Inside bar: current candle is completely within previous candle's range
+isInsideBar() =>
+    high <= high[1] and low >= low[1]
+
+// Inside Bar Strength Calculation
+getInsideBarStrength() =>
+    if isInsideBar()
+        motherRange = high[1] - low[1]
+        insideRange = high - low
+        rangeRatio = motherRange > 0 ? insideRange / motherRange : 0
+        
+        if rangeRatio <= strongInsideThreshold
+            "STRONG INSIDE"
+        else
+            "WEAK INSIDE"
+    else
+        "NONE"
+
+// Inside Bar State Variables
+var float insideBarHigh = na
+var float insideBarLow = na
+var bool waitingForInsideBreakout = false
+var bool insideBuySignalGenerated = false
+var bool insideSellSignalGenerated = false
+var line insideHighLine = na
+var line insideLowLine = na
+var int totalInsideBars = 0
+var int strongInsideBars = 0
+var int insideBreakoutSuccess = 0
+var int insideBarFormationBar = 0
+
+// Inside Bar Logic
+currentInsideBar = isInsideBar() and showInsideBarSignals
+insideBarStrength = getInsideBarStrength()
+
+// Clean up old inside bar setup if too many bars have passed
+if waitingForInsideBreakout and (bar_index - insideBarFormationBar) > 20
+    waitingForInsideBreakout := false
+    if showInsideBarLines
+        line.delete(insideHighLine)
+        line.delete(insideLowLine)
+
+// Track inside bar statistics
+if currentInsideBar and not currentInsideBar[1]
+    totalInsideBars += 1
+    if insideBarStrength == "STRONG INSIDE"
+        strongInsideBars += 1
+
+// When inside bar forms, store its levels
+if currentInsideBar and not currentInsideBar[1] and showInsideBarSignals
+    insideBarHigh := high[1]  // Previous candle's high (mother candle)
+    insideBarLow := low[1]    // Previous candle's low (mother candle)
+    waitingForInsideBreakout := true
+    insideBuySignalGenerated := false
+    insideSellSignalGenerated := false
+    insideBarFormationBar := bar_index
+    
+    // Draw breakout lines
+    if showInsideBarLines
+        line.delete(insideHighLine)
+        line.delete(insideLowLine)
+        
+        insideHighLine := line.new(bar_index-1, insideBarHigh, bar_index + 20, insideBarHigh, 
+                                  color=color.green, width=1, style=line.style_dashed, extend=extend.right)
+        insideLowLine := line.new(bar_index-1, insideBarLow, bar_index + 20, insideBarLow, 
+                                 color=color.red, width=1, style=line.style_dashed, extend=extend.right)
+
+// Inside Bar Breakout Signals
+insideBuyCondition = showInsideBarSignals and waitingForInsideBreakout and close > insideBarHigh and not insideBuySignalGenerated
+insideSellCondition = showInsideBarSignals and waitingForInsideBreakout and close < insideBarLow and not insideSellSignalGenerated
+
+// Track inside breakout success
+if insideBuyCondition or insideSellCondition
+    insideBreakoutSuccess += 1
+    // Clean up lines after breakout
+    if showInsideBarLines
+        line.delete(insideHighLine)
+        line.delete(insideLowLine)
+
+// Inside Bar Trade Decision Logic
+getInsideBarDecision() =>
+    // Strong trend and good momentum for Inside Bar
+    if adxAbove20 and rsiBullish and volumeRatio > 1.2 and insideBarStrength == "STRONG INSIDE"
+        "IB TRADE ✓"
+    // Sideways market - note adx is the actual ADX value from ta.dmi
+    else if not adxAbove20
+        "IB SIDEWAYS ↔"
+    // Conflicting signals
+    else if rsi > 70 or rsi < 30 or volumeRatio < 0.8
+        "IB CAUTION ⚠"
+    // Default
+    else
+        "IB WAIT"
+
+// === AI CLOUD CALCULATIONS ===
+// AI Timeframe Analysis
+aiIsIntraday = showAICloud and aiIntradayMode and (timeframe.in_seconds() <= 3600)
+aiIsScalping = showAICloud and aiScalping and (timeframe.in_seconds() <= 900)
+aiIsDayTrading = showAICloud and aiDayTrading and (timeframe.in_seconds() <= 3600)
+
+// AI Session Detection
+aiInSession = showAICloud and aiSessionFilter ? not na(time(timeframe.period, aiMarketSession)) : true
+
+// Initialize AI variables
+var float aiXATR = 0.0
+var float aiNLoss = 0.0
+var float aiIntradayATR = 0.0
+var float aiAdaptiveATR = 0.0
+var float aiLayer1 = close
+var float aiLayer2 = close
+var float aiLayer3 = close
+var float aiSignal = close
+var float aiUpperBand = close
+var float aiLowerBand = close
+var float aiTrailingStop = close
+var int aiTrend = 0
+var bool aiCrossUp = false
+var bool aiCrossDown = false
+var float aiShadowStrength = 50
+var float aiMomentum = 0
+var float aiFastMomentum = 0
+
+if showAICloud
+    aiXATR := ta.atr(aiATRPeriod)
+    aiNLoss := aiSensitivity * aiXATR
+    
+    // Intraday ATR adjustments
+    aiIntradayATR := aiIsIntraday ? aiXATR * aiIntradayRisk : aiXATR
+    aiScalpingATR = aiIsScalping ? aiXATR * 0.5 : aiXATR
+    
+    // Multi-timeframe ATR
+    htfTimeframe = aiIsIntraday ? "60" : timeframe.multiplier > 1 ? str.tostring(timeframe.multiplier * 4) : "240"
+    htfATR = request.security(syminfo.tickerid, htfTimeframe, ta.atr(aiATRPeriod), gaps=barmerge.gaps_off)
+    
+    aiAdaptiveATR := aiIsIntraday ? math.avg(aiIntradayATR, htfATR * 0.3) : math.avg(aiXATR, htfATR * 0.5)
+
+// AI Source Processing
+aiSrc = showAICloud ? (aiHeikinMode ? request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close, gaps=barmerge.gaps_off) : close) : close
+
+// AI Smoothing
+aiIntradaySmoothing = aiIsScalping ? 1 : aiIsDayTrading ? 2 : aiSmoothingFactor
+aiSmoothedSrc = showAICloud ? ta.sma(aiSrc, aiIntradaySmoothing) : close
+
+// AI Neural Network Layers
+if showAICloud
+    aiLayer1 := aiIsScalping ? ta.ema(aiSmoothedSrc, 3) : ta.ema(aiSmoothedSrc, 8)
+    aiLayer2 := aiIsScalping ? ta.ema(aiLayer1, 5) : ta.ema(aiLayer1, 13)
+    aiLayer3 := aiIsScalping ? ta.ema(aiLayer2, 8) : ta.ema(aiLayer2, 21)
+    
+    // AI Signal Weighting
+    aiWeight1 = aiIsScalping ? 0.7 : aiIsDayTrading ? 0.6 : 0.5
+    aiWeight2 = aiIsScalping ? 0.2 : aiIsDayTrading ? 0.25 : 0.3
+    aiWeight3 = aiIsScalping ? 0.1 : aiIsDayTrading ? 0.15 : 0.2
+    
+    aiSignal := (aiLayer1 * aiWeight1) + (aiLayer2 * aiWeight2) + (aiLayer3 * aiWeight3)
+
+// AI Bands and Trailing Stop
+if showAICloud
+    // Dynamic intensity
+    aiIntradayIntensity = aiIsScalping ? aiShadowIntensity * 0.5 : aiIsDayTrading ? aiShadowIntensity * 0.75 : aiShadowIntensity
+    
+    // Bands calculation
+    aiUpperBand := aiSignal + (aiAdaptiveATR * aiIntradayIntensity)
+    aiLowerBand := aiSignal - (aiAdaptiveATR * aiIntradayIntensity)
+    
+    // Trailing stop
+    aiTrailingMultiplier = aiIsScalping ? aiSensitivity * 0.5 : aiIsDayTrading ? aiSensitivity * 0.75 : aiSensitivity
+    
+    aiTrailingStop := if aiSignal > nz(aiTrailingStop[1], 0) and aiSignal[1] > nz(aiTrailingStop[1], 0)
+        math.max(nz(aiTrailingStop[1]), aiSignal - (aiAdaptiveATR * aiTrailingMultiplier))
+    else if aiSignal < nz(aiTrailingStop[1], 0) and aiSignal[1] < nz(aiTrailingStop[1], 0)
+        math.min(nz(aiTrailingStop[1]), aiSignal + (aiAdaptiveATR * aiTrailingMultiplier))
+    else if aiSignal > nz(aiTrailingStop[1], 0)
+        aiSignal - (aiAdaptiveATR * aiTrailingMultiplier)
+    else
+        aiSignal + (aiAdaptiveATR * aiTrailingMultiplier)
+
+// AI Trend Detection
+if showAICloud
+    aiTrend := if aiSignal[1] < nz(aiTrailingStop[1], 0) and aiSignal > nz(aiTrailingStop[1], 0)
+        1
+    else if aiSignal[1] > nz(aiTrailingStop[1], 0) and aiSignal < nz(aiTrailingStop[1], 0)
+        -1
+    else
+        nz(aiTrend[1], 0)
+
+// AI Signal Generation
+if showAICloud
+    // Volume analysis
+    aiVolumeWeight = aiIsIntraday ? (volumeHigh ? 1.8 : volume < volSMA ? 0.5 : 1.0) : (volume > volSMA ? 1.5 : 1.0)
+    
+    // Shadow strength
+    aiShadowStrength := ta.rsi(aiSignal, aiIsScalping ? 7 : aiIsDayTrading ? 10 : 14) * aiVolumeWeight
+    
+    // Crossover detection
+    aiCrossUp := ta.crossover(aiSignal, aiTrailingStop)
+    aiCrossDown := ta.crossover(aiTrailingStop, aiSignal)
+
+// AI Session-filtered signals
+aiSessionBuy = showAICloud and aiInSession and aiSignal > aiTrailingStop and aiCrossUp and aiShadowStrength > (aiIsScalping ? 45 : 50)
+aiSessionSell = showAICloud and aiInSession and aiSignal < aiTrailingStop and aiCrossDown and aiShadowStrength < (aiIsScalping ? 55 : 50)
+
+// AI Momentum
+if showAICloud
+    aiMomentum := ta.change(aiSignal, 1)
+    aiFastMomentum := ta.change(aiSignal, aiIsScalping ? 1 : 2)
+
+// AI Signal Types
+aiTrendChange = showAICloud ? ta.change(aiTrend, 1) : 0
+aiCrossUnder = showAICloud ? ta.crossunder(aiSignal, aiTrailingStop) : false
+aiCrossOver = showAICloud ? ta.crossover(aiSignal, aiTrailingStop) : false
+
+// AI High Volume check for signals
+aiHighVolume = volumeHigh  // Using existing volumeHigh calculation
+
+// AI Scalping signals
+aiScalpBuy = showAICloud and aiIsScalping and aiSessionBuy and aiFastMomentum > 0 and aiHighVolume
+aiScalpSell = showAICloud and aiIsScalping and aiSessionSell and aiFastMomentum < 0 and aiHighVolume
+
+// AI Day trading signals
+aiDayBuy = showAICloud and aiIsDayTrading and aiSessionBuy and aiMomentum > 0 and aiTrend == 1
+aiDaySell = showAICloud and aiIsDayTrading and aiSessionSell and aiMomentum < 0 and aiTrend == -1
+
+// AI Swing intraday signals
+aiSwingBuy = showAICloud and aiSwingIntraday and aiSessionBuy and aiMomentum > 0 and aiTrend == 1 and aiTrendChange == 1
+aiSwingSell = showAICloud and aiSwingIntraday and aiSessionSell and aiMomentum < 0 and aiTrend == -1 and aiTrendChange == -1
+
+// AI Quick exit signals
+aiQuickExitBuy = showAICloud and aiQuickExit and aiTrend == -1 and aiCrossUnder
+aiQuickExitSell = showAICloud and aiQuickExit and aiTrend == 1 and aiCrossOver
+
+// === RSI DIVERGENCE BREAKOUT DETECTION ===
+var string rsiBreakoutType = "SIDEWAYS"
+var label rsiBreakoutLabel = na
+
+if showRSIDivergence
+    // Calculate RSI
+    rsiDiv = ta.rsi(close, rsiDivPeriod)
+    
+    // Find pivot highs and lows for divergence
+    pivHigh = ta.pivothigh(high, rsiDivLookback/2, rsiDivLookback/2)
+    pivLow = ta.pivotlow(low, rsiDivLookback/2, rsiDivLookback/2)
+    
+    rsiPivHigh = ta.pivothigh(rsiDiv, rsiDivLookback/2, rsiDivLookback/2)
+    rsiPivLow = ta.pivotlow(rsiDiv, rsiDivLookback/2, rsiDivLookback/2)
+    
+    // Detect divergences
+    bullishDiv = false
+    bearishDiv = false
+    
+    // Bullish divergence: price makes lower low, RSI makes higher low
+    if not na(pivLow) and not na(rsiPivLow)
+        if low < low[rsiDivLookback] and rsiDiv > rsiDiv[rsiDivLookback]
+            bullishDiv := true
+    
+    // Bearish divergence: price makes higher high, RSI makes lower high
+    if not na(pivHigh) and not na(rsiPivHigh)
+        if high > high[rsiDivLookback] and rsiDiv < rsiDiv[rsiDivLookback]
+            bearishDiv := true
+    
+    // Determine breakout type
+    strongUptrend = rsiDiv > 70 and close > ema9
+    strongDowntrend = rsiDiv < 30 and close < ema9
+    sidewaysMarket = math.abs(rsiDiv - 50) < 20
+    retracing = (rsiDiv > 50 and close < ema9) or (rsiDiv < 50 and close > ema9)
+    
+    // Trap detection based on volume and price action
+    trapCondition = (bullishDiv and volume < volSMA * 0.7) or (bearishDiv and volume < volSMA * 0.7)
+    
+    if trapCondition
+        rsiBreakoutType := "TRAP"
+    else if bullishDiv or strongUptrend
+        rsiBreakoutType := "BULLISH"
+    else if bearishDiv or strongDowntrend
+        rsiBreakoutType := "BEARISH"
+    else if retracing
+        rsiBreakoutType := "RETRACING"
+    else if sidewaysMarket
+        rsiBreakoutType := "SIDEWAYS"
+    
+    // Display RSI breakout label
+    if barstate.islast
+        if not na(rsiBreakoutLabel)
+            label.delete(rsiBreakoutLabel)
+        
+        var color labelColor = na
+        labelColor := switch rsiBreakoutType
+            "BULLISH" => color.green
+            "BEARISH" => color.red
+            "TRAP" => color.orange
+            "RETRACING" => color.yellow
+            => color.gray
+        
+        rsiBreakoutLabel := label.new(bar_index, high * 1.08, rsiBreakoutType, 
+                                     style=label.style_none, textcolor=labelColor, size=size.small)
+
+// === 7-BOOSTER CALCULATION FOR BOTH MODES ===
+// Calculate boosters for Mode 1
+bullBoosters_mode1 = 0
+bullBoosters_mode1 += adxAbove20 ? 1 : 0
+bullBoosters_mode1 += rsiBullish ? 1 : 0
+bullBoosters_mode1 += supertrendBuy ? 1 : 0
+bullBoosters_mode1 += volumeHigh ? 1 : 0
+bullBoosters_mode1 += atrActive ? 1 : 0
+bullBoosters_mode1 += macdBullish ? 1 : 0
+bullBoosters_mode1 += smaBullish ? 1 : 0
+bullBoosters_mode1 += wprOversold ? 1 : 0
+bullBoosters_mode1 += inGoldenZone ? 1 : 0
+bullBoosters_mode1 += close > ema9_mode1 ? 1 : 0
+bullBoosters_mode1 += close > ema21_mode1 ? 1 : 0
+bullBoosters_mode1 += close > vwapValue ? 1 : 0
+bullBoosters_mode1 += close > open ? 1 : 0
+bullBoosters_mode1 += ema9_mode1 > ema21_mode1 ? 1 : 0
+bullBoosters_mode1 += obvBullish ? 1 : 0
+
+bearBoosters_mode1 = 0
+bearBoosters_mode1 += adxAbove20 ? 1 : 0
+bearBoosters_mode1 += not rsiBullish ? 1 : 0
+bearBoosters_mode1 += not supertrendBuy ? 1 : 0
+bearBoosters_mode1 += volumeHigh ? 1 : 0
+bearBoosters_mode1 += atrActive ? 1 : 0
+bearBoosters_mode1 += not macdBullish ? 1 : 0
+bearBoosters_mode1 += not smaBullish ? 1 : 0
+bearBoosters_mode1 += wpr > -20 ? 1 : 0
+bearBoosters_mode1 += not inGoldenZone ? 1 : 0
+bearBoosters_mode1 += close < ema9_mode1 ? 1 : 0
+bearBoosters_mode1 += close < ema21_mode1 ? 1 : 0
+bearBoosters_mode1 += close < vwapValue ? 1 : 0
+bearBoosters_mode1 += close < open ? 1 : 0
+bearBoosters_mode1 += ema9_mode1 < ema21_mode1 ? 1 : 0
+bearBoosters_mode1 += not obvBullish ? 1 : 0
+
+// Calculate boosters for Mode 2
+bullBoosters_mode2 = 0
+bullBoosters_mode2 += adxAbove20 ? 1 : 0
+bullBoosters_mode2 += rsiBullish ? 1 : 0
+bullBoosters_mode2 += supertrendBuy ? 1 : 0
+bullBoosters_mode2 += volumeHigh ? 1 : 0
+bullBoosters_mode2 += atrActive ? 1 : 0
+bullBoosters_mode2 += macdBullish ? 1 : 0
+bullBoosters_mode2 += smaBullish ? 1 : 0
+bullBoosters_mode2 += wprOversold ? 1 : 0
+bullBoosters_mode2 += inGoldenZone ? 1 : 0
+bullBoosters_mode2 += close > ema9_mode2 ? 1 : 0
+bullBoosters_mode2 += close > ema21_mode2 ? 1 : 0
+bullBoosters_mode2 += close > vwapValue ? 1 : 0
+bullBoosters_mode2 += close > open ? 1 : 0
+bullBoosters_mode2 += ema9_mode2 > ema21_mode2 ? 1 : 0
+bullBoosters_mode2 += obvBullish ? 1 : 0
+
+bearBoosters_mode2 = 0
+bearBoosters_mode2 += adxAbove20 ? 1 : 0
+bearBoosters_mode2 += not rsiBullish ? 1 : 0
+bearBoosters_mode2 += not supertrendBuy ? 1 : 0
+bearBoosters_mode2 += volumeHigh ? 1 : 0
+bearBoosters_mode2 += atrActive ? 1 : 0
+bearBoosters_mode2 += not macdBullish ? 1 : 0
+bearBoosters_mode2 += not smaBullish ? 1 : 0
+bearBoosters_mode2 += wpr > -20 ? 1 : 0
+bearBoosters_mode2 += not inGoldenZone ? 1 : 0
+bearBoosters_mode2 += close < ema9_mode2 ? 1 : 0
+bearBoosters_mode2 += close < ema21_mode2 ? 1 : 0
+bearBoosters_mode2 += close < vwapValue ? 1 : 0
+bearBoosters_mode2 += close < open ? 1 : 0
+bearBoosters_mode2 += ema9_mode2 < ema21_mode2 ? 1 : 0
+bearBoosters_mode2 += not obvBullish ? 1 : 0
+
+// Use appropriate boosters based on mode
+bullBoosters = dualModeEnabled ? bullBoosters_mode2 : bullBoosters_mode1
+bearBoosters = dualModeEnabled ? bearBoosters_mode2 : bearBoosters_mode1
+activeMinBoosters = dualModeEnabled ? mode2MinBoosters : minBoosters
+
+// Booster signals
+boosterBuySignal = bullBoosters >= activeMinBoosters
+boosterSellSignal = bearBoosters >= activeMinBoosters
+
+// === SIGNAL DETECTION ===
+bullCross_mode1 = ta.crossover(ema9_mode1, ema21_mode1)
+bearCross_mode1 = ta.crossunder(ema9_mode1, ema21_mode1)
+bullCross_mode2 = ta.crossover(ema9_mode2, ema21_mode2)
+bearCross_mode2 = ta.crossunder(ema9_mode2, ema21_mode2)
+
+// Active signals based on mode
+bullCross = dualModeEnabled ? (bullCross_mode1 or bullCross_mode2) : bullCross_mode1
+bearCross = dualModeEnabled ? (bearCross_mode1 or bearCross_mode2) : bearCross_mode1
+
+// === EXIT SIGNAL LOGIC ===
+var bool inLongPosition = false
+var bool inShortPosition = false
+var int entryBar = 0
+
+// Track positions
+if bullCross
+    inLongPosition := true
+    inShortPosition := false
+    entryBar := bar_index
+else if bearCross
+    inShortPosition := true
+    inLongPosition := false
+    entryBar := bar_index
+
+// Exit conditions
+exitLong = inLongPosition and (bearCross or ((bar_index - entryBar > 5) and (close < ema9)))
+exitShort = inShortPosition and (bullCross or ((bar_index - entryBar > 5) and (close > ema9)))
+
+if exitLong
+    inLongPosition := false
+if exitShort
+    inShortPosition := false
+
+// === HARMONIC PATTERN DETECTION (ONLY ABCD) ===
+// Zigzag for pattern detection
+zigzagDepth = 12
+var float[] pivotHighs = array.new_float(5, na)
+var float[] pivotLows = array.new_float(5, na)
+var int[] pivotHighBars = array.new_int(5, na)
+var int[] pivotLowBars = array.new_int(5, na)
+
+// Detect pivot points
+pivHigh = ta.pivothigh(high, zigzagDepth, zigzagDepth)
+pivLow = ta.pivotlow(low, zigzagDepth, zigzagDepth)
+
+// Store pivot points
+if not na(pivHigh)
+    array.shift(pivotHighs)
+    array.push(pivotHighs, pivHigh)
+    array.shift(pivotHighBars)
+    array.push(pivotHighBars, bar_index[zigzagDepth])
+
+if not na(pivLow)
+    array.shift(pivotLows)
+    array.push(pivotLows, pivLow)
+    array.shift(pivotLowBars)
+    array.push(pivotLowBars, bar_index[zigzagDepth])
+
+// Function to calculate Fibonacci ratios
+fib_ratio(price1, price2, price3) =>
+    if price2 != price1
+        math.abs((price3 - price2) / (price2 - price1))
+    else
+        0.0
+
+// ABCD Pattern Detection
+isABCD(ab, bc, cd) =>
+    (bc >= 0.618 and bc <= 0.798) and (cd >= 1.272 and cd <= 1.618)
+
+// Initialize harmonic pattern variables
+var float A = na
+var float B = na
+var float C = na
+var float D = na
+
+// Check for ABCD pattern when we have enough pivots
+if showABCD and array.size(pivotHighs) >= 2 and array.size(pivotLows) >= 2
+    A := array.get(pivotLows, 0)
+    B := array.get(pivotHighs, 0) 
+    C := array.get(pivotLows, 1)
+    D := array.get(pivotHighs, 1)
+    
+    if not na(A) and not na(B) and not na(C) and not na(D)
+        AB = B - A
+        BC = B - C
+        CD = D - C
+        
+        if AB != 0 and BC != 0
+            ab_ratio = math.abs(AB / AB)  // Always 1 for first leg
+            bc_ratio = math.abs(BC / AB)
+            cd_ratio = math.abs(CD / BC)
+            
+            if isABCD(ab_ratio, bc_ratio, cd_ratio) and barstate.isconfirmed
+                label.new(bar_index, low * 0.99, "ABCD - Valid",
+                          style=label.style_none, textcolor=color.blue, size=size.tiny)
+                
+                // Draw ABCD pattern lines
+                if array.size(pivotLowBars) >= 2 and array.size(pivotHighBars) >= 2
+                    aBar = array.get(pivotLowBars, 0)
+                    bBar = array.get(pivotHighBars, 0)
+                    cBar = array.get(pivotLowBars, 1)
+                    dBar = array.get(pivotHighBars, 1)
+                    
+                    if not na(aBar) and not na(bBar) and not na(cBar) and not na(dBar)
+                        line.new(x1=aBar, y1=A, x2=bBar, y2=B, color=harmonicColor, width=harmonicLineWidth)
+                        line.new(x1=bBar, y1=B, x2=cBar, y2=C, color=harmonicColor, width=harmonicLineWidth)
+                        line.new(x1=cBar, y1=C, x2=dBar, y2=D, color=harmonicColor, width=harmonicLineWidth)
+
+// === CURVE PATTERN DETECTION ===
+// Detect curve patterns using polynomial regression
+lookbackCurve = 50
+var line curveLine = na
+var label curveLabel = na
+
+// Simple curve detection using quadratic fit
+if showCurvePattern and barstate.islast
+    sumX = 0.0
+    sumY = 0.0
+    sumX2 = 0.0
+    sumXY = 0.0
+    sumX3 = 0.0
+    sumX4 = 0.0
+    sumX2Y = 0.0
+    
+    for i = 0 to lookbackCurve - 1
+        x = float(i)
+        y = close[lookbackCurve - 1 - i]
+        sumX += x
+        sumY += y
+        sumX2 += x * x
+        sumXY += x * y
+        sumX3 += x * x * x
+        sumX4 += x * x * x * x
+        sumX2Y += x * x * y
+    
+    n = float(lookbackCurve)
+    
+    // Calculate curve coefficients - break down complex calculation
+    term1 = n * sumX2 * sumX4
+    term2 = sumX2 * sumX2 * sumX2
+    term3 = n * sumX3 * sumX3
+    term4 = 2 * sumX * sumX2 * sumX3
+    term5 = sumX * sumX * sumX4
+    
+    denom = term1 - term2 - term3 + term4 - term5
+    
+    a = 0.0
+    
+    if math.abs(denom) > 0.0001
+        // Calculate numerator in parts
+        num1 = sumY * sumX2 * sumX4
+        num2 = sumY * sumX3 * sumX3
+        num3 = sumX * sumXY * sumX4
+        num4 = sumX * sumX2Y * sumX3
+        num5 = sumX2 * sumXY * sumX3
+        num6 = sumX2 * sumX2 * sumX2Y
+        
+        numerator = num1 - num2 - num3 + num4 + num5 - num6
+        a := numerator / denom
+        
+        // Determine curve type
+        if a > 0.01
+            curveType := "Bullish Curve"
+        else if a < -0.01
+            curveType := "Bearish Curve"
+        else
+            curveType := "Linear"
+            
+        curveValid := math.abs(a) > 0.005
+    
+    if not na(curveLine)
+        line.delete(curveLine)
+    if not na(curveLabel)
+        label.delete(curveLabel)
+        
+    // Draw curve indication
+    if curveValid
+        curveLine := line.new(bar_index[lookbackCurve], close[lookbackCurve], bar_index, close,
+                             color=curveColor, width=1, style=line.style_dashed)
+        labelText = curveType + " - Valid"
+        curveLabel := label.new(bar_index, high * 1.01, labelText,
+                               style=label.style_none, textcolor=color.blue, size=size.tiny)
+
+// === TREND ANGLE CALCULATION ===
+var line trendLine = na
+var label angleLabel = na
+
+// Calculate price range outside conditional for consistency
+trendHighest = ta.highest(high, trendAnglePeriod)
+trendLowest = ta.lowest(low, trendAnglePeriod)
+
+if showTrendAngle and barstate.islast
+    // Calculate linear regression
+    sumX = 0.0
+    sumY = 0.0
+    sumXY = 0.0
+    sumX2 = 0.0
+    
+    for i = 0 to trendAnglePeriod - 1
+        sumX += i
+        sumY += close[i]
+        sumXY += i * close[i]
+        sumX2 += i * i
+    
+    n = trendAnglePeriod
+    denominator = (n * sumX2) - (sumX * sumX)
+    
+    slope = 0.0
+    intercept = 0.0
+    
+    if denominator != 0
+        slope := ((n * sumXY) - (sumX * sumY)) / denominator
+        intercept := (sumY - (slope * sumX)) / n
+    
+    // Calculate angle in degrees
+    priceRange = trendHighest - trendLowest
+    normalizedSlope = 0.0
+    
+    if priceRange > 0
+        normalizedSlope := (slope / priceRange) * trendAnglePeriod
+    
+    angleRadians = math.atan(normalizedSlope)
+    angleDegrees = angleRadians * 180 / math.pi
+    
+    // Determine trend strength
+    absAngle = math.abs(angleDegrees)
+    trendStrength = "Weak"
+    if absAngle > 30
+        trendStrength := "Strong"
+    else if absAngle > 15
+        trendStrength := "Moderate"
+    
+    trendDirection = angleDegrees > 0 ? "Bullish" : "Bearish"
+    
+    if not na(trendLine)
+        line.delete(trendLine)
+    if not na(angleLabel)
+        label.delete(angleLabel)
+    
+    // Draw trend line
+    startY = intercept + (slope * (trendAnglePeriod - 1))
+    endY = intercept
+    trendLine := line.new(bar_index[trendAnglePeriod - 1], startY, bar_index, endY, 
+                         color=trendAngleColor, width=1)
+    
+    // Add angle label
+    angleText = trendDirection + " " + str.tostring(math.round(absAngle, 1)) + "° - " + trendStrength + " - Valid"
+    angleLabel := label.new(bar_index, high * 1.02, angleText, 
+                          style=label.style_none, textcolor=color.blue, size=size.tiny)
+
+// === PARALLEL CHANNEL CALCULATION ===
+var line upperChannelLine = na
+var line lowerChannelLine = na
+var line midChannelLine = na
+var label channelLabel = na
+
+// Calculate highest and lowest outside conditional for consistency
+channelHighest = ta.highest(high, channelLookback)
+channelLowest = ta.lowest(low, channelLookback)
+
+if showParallelChannel
+    // Find highest and lowest points in lookback period
+    highestBar = ta.highestbars(high, channelLookback)
+    lowestBar = ta.lowestbars(low, channelLookback)
+    
+    highestPrice = channelHighest
+    lowestPrice = channelLowest
+    
+    // Calculate channel slope using linear regression of highs and lows
+    sumX = 0.0
+    sumYHigh = 0.0
+    sumYLow = 0.0
+    sumXY_High = 0.0
+    sumXY_Low = 0.0
+    sumX2 = 0.0
+    
+    for i = 0 to channelLookback - 1
+        x = float(i)
+        yHigh = high[i]
+        yLow = low[i]
+        
+        sumX += x
+        sumYHigh += yHigh
+        sumYLow += yLow
+        sumXY_High += x * yHigh
+        sumXY_Low += x * yLow
+        sumX2 += x * x
+    
+    n = float(channelLookback)
+    denominator = (n * sumX2) - (sumX * sumX)
+    
+    slopeHigh = 0.0
+    slopeLow = 0.0
+    avgSlope = 0.0
+    
+    if denominator != 0
+        slopeHigh := ((n * sumXY_High) - (sumX * sumYHigh)) / denominator
+        slopeLow := ((n * sumXY_Low) - (sumX * sumYLow)) / denominator
+        avgSlope := (slopeHigh + slopeLow) / 2
+    
+    // Calculate intercepts
+    interceptHigh = (sumYHigh - (avgSlope * sumX)) / n
+    interceptLow = (sumYLow - (avgSlope * sumX)) / n
+    
+    // Add deviation
+    channelRange = interceptHigh - interceptLow
+    upperIntercept = interceptHigh + (channelRange * channelDeviation / 10)
+    lowerIntercept = interceptLow - (channelRange * channelDeviation / 10)
+    midIntercept = (upperIntercept + lowerIntercept) / 2
+    
+    // Calculate line points
+    upperStart = upperIntercept + (avgSlope * (channelLookback - 1))
+    upperEnd = upperIntercept
+    lowerStart = lowerIntercept + (avgSlope * (channelLookback - 1))
+    lowerEnd = lowerIntercept
+    midStart = midIntercept + (avgSlope * (channelLookback - 1))
+    midEnd = midIntercept
+    
+    // Delete previous lines
+    if not na(upperChannelLine)
+        line.delete(upperChannelLine)
+    if not na(lowerChannelLine)
+        line.delete(lowerChannelLine)
+    if not na(midChannelLine)
+        line.delete(midChannelLine)
+    if not na(channelLabel)
+        label.delete(channelLabel)
+    
+    // Draw new lines
+    if barstate.islast
+        upperChannelLine := line.new(bar_index[channelLookback - 1], upperStart, bar_index, upperEnd, 
+                                   color=upperChannelColor, width=channelLineWidth, style=line.style_solid)
+        lowerChannelLine := line.new(bar_index[channelLookback - 1], lowerStart, bar_index, lowerEnd, 
+                                   color=lowerChannelColor, width=channelLineWidth, style=line.style_solid)
+        midChannelLine := line.new(bar_index[channelLookback - 1], midStart, bar_index, midEnd, 
+                                 color=midChannelColor, width=channelLineWidth, style=line.style_dashed)
+        
+        // Channel breakout detection
+        if showChannelBreakouts
+            channelText = "Within Channel - Valid"
+            if close > upperEnd
+                channelText := "Channel Breakout ↑ - Valid"
+            else if close < lowerEnd
+                channelText := "Channel Breakdown ↓ - Valid"
+            
+            channelLabel := label.new(
+                 x=bar_index, 
+                 y=high * 1.005, 
+                 text=channelText, 
+                 style=label.style_none, 
+                 textcolor=color.blue, 
+                 size=size.tiny)
+
+// === REGRESSION TREND CALCULATION ===
+var line regressionLine = na
+var line upperRegressionLine = na
+var line lowerRegressionLine = na
+var label regressionLabel = na
+var label pearsonLabel = na
+
+if showRegressionTrend
+    // Linear regression calculation
+    sumX = 0.0
+    sumY = 0.0
+    sumXY = 0.0
+    sumX2 = 0.0
+    sumY2 = 0.0
+    
+    for i = 0 to regressionLength - 1
+        x = float(i)
+        y = close[i]
+        sumX += x
+        sumY += y
+        sumXY += x * y
+        sumX2 += x * x
+        sumY2 += y * y
+    
+    n = float(regressionLength)
+    
+    // Calculate slope and intercept with safety checks
+    denomX = (n * sumX2) - (sumX * sumX)
+    slope = 0.0
+    intercept = 0.0
+    
+    if denomX != 0
+        slope := ((n * sumXY) - (sumX * sumY)) / denomX
+        intercept := (sumY - (slope * sumX)) / n
+    
+    // Calculate standard deviation
+    sumResiduals2 = 0.0
+    for i = 0 to regressionLength - 1
+        predicted = intercept + (slope * i)
+        residual = close[i] - predicted
+        sumResiduals2 += residual * residual
+    
+    stdDev = math.sqrt(sumResiduals2 / n)
+    
+    // Calculate Pearson correlation coefficient
+    denomY = (n * sumY2) - (sumY * sumY)
+    pearsonR = 0.0
+    
+    if denomX != 0 and denomY != 0
+        numeratorR = (n * sumXY) - (sumX * sumY)
+        denominatorR = math.sqrt(denomX * denomY)
+        if denominatorR != 0
+            pearsonR := numeratorR / denominatorR
+    
+    // Calculate regression line points
+    startY = intercept + (slope * (regressionLength - 1))
+    endY = intercept
+    
+    // Calculate channel lines
+    upperY_start = startY + (stdDev * regressionDeviations)
+    upperY_end = endY + (stdDev * regressionDeviations)
+    lowerY_start = startY - (stdDev * regressionDeviations)
+    lowerY_end = endY - (stdDev * regressionDeviations)
+    
+    // Delete previous lines
+    if not na(regressionLine)
+        line.delete(regressionLine)
+    if not na(upperRegressionLine)
+        line.delete(upperRegressionLine)
+    if not na(lowerRegressionLine)
+        line.delete(lowerRegressionLine)
+    if not na(regressionLabel)
+        label.delete(regressionLabel)
+    if not na(pearsonLabel)
+        label.delete(pearsonLabel)
+    
+    // Draw regression lines
+    if barstate.islast
+        extendType = regressionExtend ? extend.right : extend.none
+        
+        regressionLine := line.new(bar_index[regressionLength - 1], startY, bar_index, endY, 
+                                 color=regressionColor, width=regressionLineWidth, 
+                                 style=line.style_solid, extend=extendType)
+        
+        if showRegressionChannels
+            upperRegressionLine := line.new(bar_index[regressionLength - 1], upperY_start, 
+                                          bar_index, upperY_end, color=upperRegressionColor, 
+                                          width=regressionLineWidth, style=line.style_dotted, 
+                                          extend=extendType)
+            lowerRegressionLine := line.new(bar_index[regressionLength - 1], lowerY_start, 
+                                          bar_index, lowerY_end, color=lowerRegressionColor, 
+                                          width=regressionLineWidth, style=line.style_dotted, 
+                                          extend=extendType)
+        
+        // Trend direction and strength
+        trendDirection = slope > 0 ? "Bullish" : "Bearish"
+        absR = math.abs(pearsonR)
+        trendStrength = "Weak"
+        if absR > 0.7
+            trendStrength := "Strong"
+        else if absR > 0.5
+            trendStrength := "Moderate"
+        
+        regressionLabel := label.new(bar_index, high * 1.015, 
+                                   "Regression: " + trendDirection + " - " + trendStrength + " - Valid", 
+                                   style=label.style_none, textcolor=color.blue, size=size.tiny)
+        
+        if showRegressionPearson
+            pearsonText = "Pearson R: " + str.tostring(pearsonR, "#.###")
+            pearsonLabel := label.new(bar_index, high * 1.025, pearsonText, style=label.style_none, textcolor=color.blue, size=size.tiny)
+
+// === WIN RATE TRACKING ===
+var int totalSignals = 0
+var int winningSignals = 0
+var float entryPrice = na
+var bool inPosition = false
+var bool isLong = false
+
+if bullCross or bearCross
+    if inPosition
+        if isLong and close > entryPrice
+            winningSignals += 1
+        else if not isLong and close < entryPrice
+            winningSignals += 1
+    
+    totalSignals += 1
+    entryPrice := close
+    inPosition := true
+    isLong := bullCross
+
+winRate = totalSignals > 0 ? (winningSignals / totalSignals) * 100 : 0
+
+// === ENHANCED TRAP DETECTION ===
+// Trap detection with reasons
+swingHigh = ta.pivothigh(high, 5, 5)
+swingLow = ta.pivotlow(low, 5, 5)
+
+var float lastSwingHigh = na
+var float lastSwingLow = na
+var string trapReason = ""
+
+if not na(swingHigh)
+    lastSwingHigh := swingHigh
+if not na(swingLow)
+    lastSwingLow := swingLow
+
+// Bull trap detection with reasons
+bullTrap = false
+if not na(lastSwingHigh) and high > lastSwingHigh and close < lastSwingHigh
+    if volume < volSMA
+        bullTrap := true
+        trapReason := "Bull Trap: Low Volume Breakout"
+    else if rsi > 70
+        bullTrap := true
+        trapReason := "Bull Trap: Overbought Reversal"
+    else if close < open and (high - close) > (close - low) * 2
+        bullTrap := true
+        trapReason := "Bull Trap: Rejection at Highs"
+    else
+        bullTrap := true
+        trapReason := "Bull Trap: False Breakout"
+
+// Bear trap detection with reasons
+bearTrap = false
+if not na(lastSwingLow) and low < lastSwingLow and close > lastSwingLow
+    if volume < volSMA
+        bearTrap := true
+        trapReason := "Bear Trap: Low Volume Breakdown"
+    else if rsi < 30
+        bearTrap := true
+        trapReason := "Bear Trap: Oversold Bounce"
+    else if close > open and (close - low) > (high - close) * 2
+        bearTrap := true
+        trapReason := "Bear Trap: Rejection at Lows"
+    else
+        bearTrap := true
+        trapReason := "Bear Trap: False Breakdown"
+
+// === TIME MARKER LOGIC ===
+// Session Configuration
+sessionStartTime = input.session("0915-1530", title="Market Session", group="Session Settings")
+preMarketSession = input.session("0900-0915", title="Pre-Market Session", group="Session Settings")
+
+// Get current bar time in exchange timezone
+barHour = hour(time, "Asia/Kolkata")
+barMinute = minute(time, "Asia/Kolkata")
+
+// Define session times for Indian market
+is900 = (barHour == 9 and barMinute == 0)   // Pre-market
+is915 = (barHour == 9 and barMinute == 15)  // Market open
+is920 = (barHour == 9 and barMinute == 20)  // 9:20 AM
+is945 = (barHour == 9 and barMinute == 45)  // 9:45 AM
+is950 = (barHour == 9 and barMinute == 50)  // 9:50 AM
+is1235 = (barHour == 12 and barMinute == 35) // 12:35 PM
+is1300 = (barHour == 13 and barMinute == 0) // 1:00 PM
+is1435 = (barHour == 14 and barMinute == 35) // 2:35 PM
+is1530 = (barHour == 15 and barMinute == 30) // Market close
+
+// Session tracking
+inSession = not na(time(timeframe.period, sessionStartTime))
+sessionStart = inSession and not inSession[1]
+
+// === DELTA IMBALANCE CALCULATION ===
+// Calculate buying and selling volume
+buyVolume = close > open ? volume : volume * (close - low) / (high - low)
+sellVolume = close < open ? volume : volume * (high - close) / (high - low)
+deltaImbalance = buyVolume - sellVolume
+cumulativeDelta = ta.cum(deltaImbalance)
+
+// Determine dominant side
+dominantSide = deltaImbalance > 0 ? "Buyers" : deltaImbalance < 0 ? "Sellers" : "Neutral"
+deltaValue = math.abs(deltaImbalance)
+
+// Display delta imbalance
+if barstate.islast
+    deltaText = dominantSide + ": " + str.tostring(math.round(deltaValue / 1000), "#.#") + "K"
+    var color deltaDisplayColor = na
+    deltaDisplayColor := deltaImbalance > 0 ? color.green : deltaImbalance < 0 ? color.red : color.gray
+    label.new(bar_index, high * 1.12, deltaText, 
+             style=label.style_none, textcolor=deltaDisplayColor, size=size.tiny)
+
+// === OPTIMIZED SIGNAL DISPLAY ===
+// Only show booster count on current signal bars
+if show7Booster and barstate.isconfirmed
+    boosterDistBelow = 1 - (boosterDistance / 100)
+    boosterDistAbove = 1 + (boosterDistance / 100)
+    
+    // Show booster count only when there's an active signal
+    if bullCross and boosterBuySignal
+        boosterText = str.tostring(bullBoosters) + "/15"
+        label.new(bar_index, low * boosterDistBelow, boosterText, style=label.style_none, 
+                 textcolor=color.new(color.lime, 0), size=size.tiny)
+    else if bearCross and boosterSellSignal
+        boosterText = str.tostring(bearBoosters) + "/15"
+        label.new(bar_index, high * boosterDistAbove, boosterText, style=label.style_none, 
+                 textcolor=color.new(color.red, 0), size=size.tiny)
+
+// EMA Cross Signals - Updated with bold text and no background
+if showEMASignals and bullCross
+    label.new(bar_index, low * (1 - (signalDistance / 100)), "B", 
+             style=label.style_none, 
+             textcolor=color.new(color.lime, 0), size=size.tiny)
+
+if showEMASignals and bearCross
+    label.new(bar_index, high * (1 + (signalDistance / 100)), "S", 
+             style=label.style_none, 
+             textcolor=color.new(color.red, 0), size=size.tiny)
+
+// Exit Signals
+if showExitSignals and exitLong
+    label.new(bar_index, high * (1 + (signalDistance / 100)), "E 🚪", 
+             style=label.style_none, 
+             textcolor=color.new(color.red, 0), size=size.tiny)
+
+if showExitSignals and exitShort
+    label.new(bar_index, low * (1 - (signalDistance / 100)), "E 🚪", 
+             style=label.style_none, 
+             textcolor=color.new(color.red, 0), size=size.tiny)
+
+// Time Markers - New vertical lines at specific times
+if showTimeMarkers
+ // Define specific times
+    is950 := (barHour == 9 and barMinute == 50)   // 9:50 AM
+    is1235 := (barHour == 12 and barMinute == 35) // 12:35 PM
+    is1435 := (barHour == 14 and barMinute == 35) // 2:35 PM
+    
+    // Draw vertical lines at specific times
+    if is915 and barstate.isconfirmed
+        line.new(bar_index, high * 1.1, bar_index, low * 0.9, color=color.new(color.orange, 80), width=1, style=line.style_dashed)
+    
+    if is950 and barstate.isconfirmed
+        line.new(bar_index, high * 1.05, bar_index, low * 0.95, color=color.new(color.gray, 80), width=1, style=line.style_dotted)
+        label.new(bar_index, low * 0.94, "9:50", style=label.style_none, textcolor=color.new(color.gray, 60), size=size.tiny)
+    
+    if is1235 and barstate.isconfirmed
+        line.new(bar_index, high * 1.05, bar_index, low * 0.95, color=color.new(color.gray, 80), width=1, style=line.style_dotted)
+        label.new(bar_index, low * 0.94, "12:35", style=label.style_none, textcolor=color.new(color.gray, 60), size=size.tiny)
+    
+    if is1435 and barstate.isconfirmed
+        line.new(bar_index, high * 1.05, bar_index, low * 0.95, color=color.new(color.gray, 80), width=1, style=line.style_dotted)
+        label.new(bar_index, low * 0.94, "2:35", style=label.style_none, textcolor=color.new(color.gray, 60), size=size.tiny)
+    
+    if is1530 and barstate.isconfirmed
+        line.new(bar_index, high * 1.1, bar_index, low * 0.9, color=color.new(color.red, 80), width=1, style=line.style_dashed)
+
+// === HORIZONTAL OPENING PRICE LINES ===
+if barstate.islast and showSupportResistance
+    // Daily Open - Dark Blue
+    dailyOpenPrice = request.security(syminfo.tickerid, "D", open, gaps=barmerge.gaps_off)
+    if not na(dailyOpenPrice) and showDailyOpen
+        dailyColor = color.new(color.blue, 70)
+        dailyTextColor = color.new(color.blue, 30)
+        dailyText = "D: " + str.tostring(dailyOpenPrice, format.mintick)
+        line.new(bar_index - 100, dailyOpenPrice, bar_index, dailyOpenPrice, color=dailyColor, width=1, extend=extend.right)
+        label.new(bar_index, dailyOpenPrice, dailyText, style=label.style_none, textcolor=dailyTextColor, size=size.tiny, textalign=text.align_right)
+
+    // 4H Open - Orange
+    fourHourOpenPrice = request.security(syminfo.tickerid, "240", open, gaps=barmerge.gaps_off)
+    if not na(fourHourOpenPrice) and show4HOpen
+        fourHColor = color.new(color.orange, 70)
+        fourHTextColor = color.new(color.orange, 30)
+        fourHText = "4H: " + str.tostring(fourHourOpenPrice, format.mintick)
+        line.new(bar_index - 100, fourHourOpenPrice, bar_index, fourHourOpenPrice, color=fourHColor, width=1, extend=extend.right)
+        label.new(bar_index, fourHourOpenPrice, fourHText, style=label.style_none, textcolor=fourHTextColor, size=size.tiny, textalign=text.align_right)
+
+    // 1H Open - Sky Blue
+    oneHourOpenPrice = request.security(syminfo.tickerid, "60", open, gaps=barmerge.gaps_off)
+    if not na(oneHourOpenPrice) and show1HOpen
+        oneHColor = color.new(#87CEEB, 70)
+        oneHTextColor = color.new(#87CEEB, 30)
+        oneHText = "1H: " + str.tostring(oneHourOpenPrice, format.mintick)
+        line.new(bar_index - 100, oneHourOpenPrice, bar_index, oneHourOpenPrice, color=oneHColor, width=1, extend=extend.right)
+        label.new(bar_index, oneHourOpenPrice, oneHText, style=label.style_none, textcolor=oneHTextColor, size=size.tiny, textalign=text.align_right)
+
+    // 15M Open - Purple
+    fifteenMinOpenPrice = request.security(syminfo.tickerid, "15", open, gaps=barmerge.gaps_off)
+    if not na(fifteenMinOpenPrice) and show15MOpen
+        fifteenMColor = color.new(color.purple, 70)
+        fifteenMTextColor = color.new(color.purple, 30)
+        fifteenMText = "15M: " + str.tostring(fifteenMinOpenPrice, format.mintick)
+        line.new(bar_index - 100, fifteenMinOpenPrice, bar_index, fifteenMinOpenPrice, color=fifteenMColor, width=1, extend=extend.right)
+        label.new(bar_index, fifteenMinOpenPrice, fifteenMText, style=label.style_none, textcolor=fifteenMTextColor, size=size.tiny, textalign=text.align_right)
+
+    // Weekly Open - Deep Orange
+    weeklyOpenPrice = request.security(syminfo.tickerid, "W", open, gaps=barmerge.gaps_off)
+    if not na(weeklyOpenPrice) and showWeeklyOpen
+        weeklyColor = color.new(#FF4500, 70)
+        weeklyTextColor = color.new(#FF4500, 30)
+        weeklyText = "W: " + str.tostring(weeklyOpenPrice, format.mintick)
+        line.new(bar_index - 100, weeklyOpenPrice, bar_index, weeklyOpenPrice, color=weeklyColor, width=1, extend=extend.right)
+        label.new(bar_index, weeklyOpenPrice, weeklyText, style=label.style_none, textcolor=weeklyTextColor, size=size.tiny, textalign=text.align_right)
+
+    // Monthly Open - Yellow
+    monthlyOpenPrice = request.security(syminfo.tickerid, "M", open, gaps=barmerge.gaps_off)
+    if not na(monthlyOpenPrice) and showMonthlyOpen
+        monthlyColor = color.new(color.yellow, 70)
+        monthlyTextColor = color.new(color.yellow, 30)
+        monthlyText = "M: " + str.tostring(monthlyOpenPrice, format.mintick)
+        line.new(bar_index - 100, monthlyOpenPrice, bar_index, monthlyOpenPrice, color=monthlyColor, width=1, extend=extend.right)
+        label.new(bar_index, monthlyOpenPrice, monthlyText, style=label.style_none, textcolor=monthlyTextColor, size=size.tiny, textalign=text.align_right)
+// === SUPPORT & RESISTANCE DETECTION ===
+// Find swing points for S/R
+swingLookback = 20
+var line supportLine = na
+var line resistanceLine = na
+var label supportLabel = na
+var label resistanceLabel = na
+var float supportLevel = na
+var float resistanceLevel = na
+
+// Detect support (swing lows)
+swingLowBar = ta.pivotlow(low, swingLookback, swingLookback)
+if not na(swingLowBar)
+    supportLevel := low[swingLookback]
+    if not na(supportLine)
+        line.delete(supportLine)
+    if not na(supportLabel)
+        label.delete(supportLabel)
+    
+    supportLine := line.new(bar_index[swingLookback], supportLevel, bar_index, supportLevel, 
+                           color=color.new(color.green, 80), width=1, style=line.style_dotted, extend=extend.right)
+    supportLabel := label.new(bar_index, supportLevel, "Support", 
+                             style=label.style_none, textcolor=color.new(color.green, 40), size=size.tiny)
+
+// Detect resistance (swing highs)
+swingHighBar = ta.pivothigh(high, swingLookback, swingLookback)
+if not na(swingHighBar)
+    resistanceLevel := high[swingLookback]
+    if not na(resistanceLine)
+        line.delete(resistanceLine)
+    if not na(resistanceLabel)
+        label.delete(resistanceLabel)
+    
+    resistanceLine := line.new(
+         bar_index[swingLookback], resistanceLevel, 
+         bar_index, resistanceLevel, 
+         color=color.new(color.red, 80), 
+         width=1, 
+         style=line.style_dotted, 
+         extend=extend.right)
+    resistanceLabel := label.new(
+         bar_index, resistanceLevel, 
+         "Resistance", 
+         style=label.style_none, 
+         textcolor=color.new(color.red, 40), 
+         size=size.tiny)
+
+// Trap Warnings with reasons
+if showTrapWarnings and (bullTrap or bearTrap) and barstate.isconfirmed
+    trapDistBelow = 1 - (trapDistance / 100)
+    trapDistAbove = 1 + (trapDistance / 100)
+    
+    if bullTrap or bearTrap
+        label.new(bar_index, bullTrap ? high * trapDistAbove : low * trapDistBelow, trapReason, 
+                 style=label.style_none, textcolor=color.new(color.orange, 0), size=size.tiny)
+
+// === INSIDE BAR VISUALIZATION ===
+// Show inside bar strength with tiny orange text
+if currentInsideBar and showInsideBars and showInsideBarSignals
+    label.new(bar_index, high * 1.005, insideBarStrength, 
+             color=color.new(color.white, 100), textcolor=color.orange, 
+             size=size.tiny, style=label.style_none)
+
+// Inside Bar Breakout Signals
+plotshape(showInsideBarBreakout and insideBuyCondition, "Inside Bar Buy Signal", style=shape.triangleup, 
+          location=location.belowbar, color=color.new(color.green, 20), size=size.small)
+          
+plotshape(showInsideBarBreakout and insideSellCondition, "Inside Bar Sell Signal", style=shape.triangledown, 
+          location=location.abovebar, color=color.new(color.red, 20), size=size.small)
+
+// Inside Bar Signal labels
+if showInsideBarBreakout and insideBuyCondition
+    ibSignalText = "IB BUY"
+    label.new(bar_index, low * 0.996, ibSignalText, 
+             style=label.style_label_up, color=color.new(color.green, 30), 
+             textcolor=color.white, size=size.tiny)
+    insideBuySignalGenerated := true
+    waitingForInsideBreakout := false
+
+if showInsideBarBreakout and insideSellCondition
+    ibSignalText = "IB SELL"
+    label.new(bar_index, high * 1.004, ibSignalText, 
+             style=label.style_label_down, color=color.new(color.red, 30), 
+             textcolor=color.white, size=size.tiny)
+    insideSellSignalGenerated := true
+    waitingForInsideBreakout := false
+
+// Candle Patterns (Only Engulfing)
+if showBullBearEngulfing and barstate.isconfirmed
+    patternDistBelow = 1 - (patternDistance / 100)
+    patternDistAbove = 1 + (patternDistance / 100)
+    
+    if is_bullish_engulfing
+        label.new(bar_index, low * patternDistBelow, "BE", style=label.style_none, 
+                 textcolor=color.new(color.lime, 0), size=size.tiny)
+    else if is_bearish_engulfing
+        label.new(bar_index, high * patternDistAbove, "BS", style=label.style_none, 
+                 textcolor=color.new(color.red, 0), size=size.tiny)
+
+// === VISUAL ARROWS ===
+plotshape(showEMASignals and bullCross, title="Buy Arrow", location=location.belowbar, 
+         color=color.lime, style=shape.triangleup, size=size.small)
+plotshape(showEMASignals and bearCross, title="Sell Arrow", location=location.abovebar, 
+         color=color.red, style=shape.triangledown, size=size.small)
+// Inside Bar marker
+plotshape(showInsideBarSignals and currentInsideBar and not currentInsideBar[1], title="Inside Bar Marker", 
+         location=location.top, color=color.new(color.yellow, 30), style=shape.circle, size=size.tiny)
+
+// === AI CLOUD VISUALIZATION ===
+// AI Cloud colors
+cloudTransparency = 100 - aiCloudOpacity
+var color aiIntradayBullish = na
+var color aiIntradayBearish = na
+var color aiScalpingBullish = na
+var color aiScalpingBearish = na
+var color aiNeutralCloud = na
+
+aiIntradayBullish := showAICloud ? color.new(color.lime, cloudTransparency) : na
+aiIntradayBearish := showAICloud ? color.new(color.red, cloudTransparency) : na
+aiScalpingBullish := showAICloud ? color.new(color.aqua, cloudTransparency) : na
+aiScalpingBearish := showAICloud ? color.new(color.fuchsia, cloudTransparency) : na
+aiNeutralCloud := showAICloud ? color.new(color.gray, cloudTransparency) : na
+
+// Determine AI cloud color based on mode and trend
+var color aiCloudColor = na
+if showAICloud
+    if aiIsScalping
+        aiCloudColor := aiTrend == 1 ? aiScalpingBullish : aiTrend == -1 ? aiScalpingBearish : aiNeutralCloud
+    else
+        aiCloudColor := aiTrend == 1 ? aiIntradayBullish : aiTrend == -1 ? aiIntradayBearish : aiNeutralCloud
+
+// AI Cloud fill
+upperPlot = plot(showAICloud ? aiUpperBand : na, color=color.new(color.white, 100), display=display.none)
+lowerPlot = plot(showAICloud ? aiLowerBand : na, color=color.new(color.white, 100), display=display.none)
+fill(upperPlot, lowerPlot, color=aiCloudColor, title="AI Intraday Cloud")
+
+// AI Trailing stop line
+var color aiTrendColor = na
+aiTrendColor := showAICloud ? (aiTrend == 1 ? (aiIsScalping ? color.lime : color.green) : 
+                              aiTrend == -1 ? (aiIsScalping ? color.red : color.maroon) : color.orange) : na
+plot(showAICloud ? aiTrailingStop : na, color=aiTrendColor, linewidth=aiIsIntraday ? 2 : 3, title="AI Trailing Stop")
+
+// AI Neural layers (optional display)
+plot(showAICloud ? aiLayer1 : na, color=color.new(aiIsScalping ? color.aqua : color.blue, 80), linewidth=1, title="AI Layer 1", display=display.none)
+plot(showAICloud ? aiLayer2 : na, color=color.new(aiIsScalping ? color.lime : color.purple, 80), linewidth=1, title="AI Layer 2", display=display.none)
+plot(showAICloud ? aiLayer3 : na, color=color.new(aiIsScalping ? color.yellow : color.orange, 80), linewidth=1, title="AI Layer 3", display=display.none)
+
+// === AI SIGNAL SHAPES ===
+// AI Scalping signals
+plotshape(aiScalpBuy, title="⚡ AI SCALP BUY", text='⚡\nSCALP', style=shape.triangleup, 
+          location=location.belowbar, color=color.new(color.aqua, 0), textcolor=color.black, size=size.tiny)
+
+plotshape(aiScalpSell, title="⚡ AI SCALP SELL", text='⚡\nSCALP', style=shape.triangledown, 
+          location=location.abovebar, color=color.new(color.fuchsia, 0), textcolor=color.white, size=size.tiny)
+
+// AI Day trading signals
+plotshape(aiDayBuy, title="📊 AI DAY BUY", text='📊\nDAY', style=shape.labelup, 
+          location=location.belowbar, color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+
+plotshape(aiDaySell, title="📊 AI DAY SELL", text='📊\nDAY', style=shape.labeldown, 
+          location=location.abovebar, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+
+// AI Swing intraday signals
+plotshape(aiSwingBuy, title="🔄 AI SWING BUY", text='🔄\nSWING', style=shape.labelup, 
+          location=location.belowbar, color=color.new(color.blue, 0), textcolor=color.white, size=size.normal)
+
+plotshape(aiSwingSell, title="🔄 AI SWING SELL", text='🔄\nSWING', style=shape.labeldown, 
+          location=location.abovebar, color=color.new(color.purple, 0), textcolor=color.white, size=size.normal)
+
+// AI Quick exit signals
+plotshape(aiQuickExitBuy, title="🚪 AI QUICK EXIT", text='🚪', style=shape.xcross, 
+          location=location.abovebar, color=color.new(color.orange, 0), textcolor=color.white, size=size.tiny)
+
+plotshape(aiQuickExitSell, title="🚪 AI QUICK EXIT", text='🚪', style=shape.xcross, 
+          location=location.belowbar, color=color.new(color.orange, 0), textcolor=color.white, size=size.tiny)
+
+// AI Bar coloring (optional)
+var color aiBarColor = na
+aiBarColor := showAICloud and aiIntradayMode ? 
+              (aiIsScalping ? (aiTrend == 1 ? color.new(color.aqua, 50) : aiTrend == -1 ? color.new(color.fuchsia, 50) : na) : 
+              (aiTrend == 1 ? color.new(color.lime, 40) : aiTrend == -1 ? color.new(color.red, 40) : na)) : na
+
+// === COMBINED BAR COLORING ===
+// Inside Bar Coloring has priority, then AI coloring
+var color finalBarColor = na
+finalBarColor := showInsideBars and currentInsideBar ? color.yellow : showAICloud and aiBarColor != na ? aiBarColor : na
+
+barcolor(finalBarColor, title="Combined Bar Colors")
+
+// === AI INFO TABLE (OPTIONAL) ===
+if barstate.islast and showAICloud and aiIntradayMode
+    var table aiInfoTable = table.new(position.bottom_right, 2, 4, bgcolor=color.new(color.black, 80), border_width=1)
+    
+    table.cell(aiInfoTable, 0, 0, "AI MODE", text_color=color.white, text_size=size.tiny)
+    aiModeDisplay = aiIsScalping ? "⚡SCALP" : aiIsDayTrading ? "📊DAY" : aiSwingIntraday ? "🔄SWING" : "STANDARD"
+    table.cell(aiInfoTable, 1, 0, aiModeDisplay, text_color=color.yellow, text_size=size.tiny)
+    
+    table.cell(aiInfoTable, 0, 1, "SESSION", text_color=color.white, text_size=size.tiny)
+    var color aiSessionStatusColor = na
+    aiSessionStatusColor := aiInSession ? color.lime : color.red
+    table.cell(aiInfoTable, 1, 1, aiInSession ? "ACTIVE" : "CLOSED", 
+               text_color=aiSessionStatusColor, text_size=size.tiny)
+    
+    table.cell(aiInfoTable, 0, 2, "VOLUME", text_color=color.white, text_size=size.tiny)
+    aiVolumeStatus = volumeHigh ? "HIGH" : volume < volSMA ? "LOW" : "NORM"
+    var color aiVolumeStatusColor = na
+    aiVolumeStatusColor := volumeHigh ? color.lime : volume < volSMA ? color.red : color.orange
+    table.cell(aiInfoTable, 1, 2, aiVolumeStatus, 
+               text_color=aiVolumeStatusColor, text_size=size.tiny)
+    
+    table.cell(aiInfoTable, 0, 3, "SHADOW", text_color=color.white, text_size=size.tiny)
+    table.cell(aiInfoTable, 1, 3, str.tostring(math.round(aiShadowStrength, 0)), 
+               text_color=color.yellow, text_size=size.tiny)
+
+// === UNIFIED DASHBOARD ===
+// Position mapping with offset support
+getTablePosition(pos_str) =>
+    switch pos_str
+        "top_left" => position.top_left
+        "top_right" => position.top_right
+        "bottom_left" => position.bottom_left
+        "bottom_right" => position.bottom_right
+        => position.top_right
+
+pos = getTablePosition(dashboardPosition)
+
+// Dashboard transparency calculation
+dashTransparency = 100 - dashboardOpacity
+
+// Text size function - fixed version
+getTextSize(sizeStr, isHeader) =>
+    result = size.normal
+    if isHeader
+        result := switch sizeStr
+            "tiny" => size.small
+            "small" => size.normal
+            "normal" => size.normal
+            "large" => size.large
+            => size.normal
+    else
+        result := switch sizeStr
+            "tiny" => size.tiny
+            "small" => size.small
+            "normal" => size.small
+            "large" => size.normal
+            => size.small
+    result
+
+// Create dashboard with proper styling - COMPACT VERSION
+var table dashboard = table.new(pos, 2, 14, 
+                               bgcolor=color.new(dashboardBgColor, dashTransparency), 
+                               border_width=1, 
+                               border_color=dashboardBorderColor,
+                               frame_width=1,
+                               frame_color=dashboardBorderColor)
+
+headerTextSize = size.tiny
+normalTextSize = size.tiny
+
+if barstate.islast and showDashboard
+    // Clear and recreate dashboard with current theme
+    dashboard := table.new(pos, 2, 14, 
+                          bgcolor=dashboardBgColor, 
+                          border_width=1, 
+                          border_color=dashboardBorderColor,
+                          frame_width=1,
+                          frame_color=dashboardBorderColor)
+    
+    row = 0
+    
+    // Dynamic header based on mode
+    headerText = "SSS™ The Infinite V400 [" + (dualModeEnabled ? "Dual" : "Single") + " Mode]"
+    table.merge_cells(dashboard, 0, row, 2, row)
+    table.cell(dashboard, 0, row, headerText, text_color=dashboardTextColor, text_size=headerTextSize, bgcolor=dashboardHeaderBg, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "7-BOOSTER INDICATORS", text_color=dashboardTextColor, text_size=normalTextSize, bgcolor=dashboardHeaderBg, text_halign=text.align_center)
+    table.merge_cells(dashboard, 0, row, 2, row)
+    
+    // Define indicator colors based on theme
+    positiveColor = isDarkMode ? color.new(color.lime, 10) : color.new(color.green, 10)
+    negativeColor = isDarkMode ? color.new(color.red, 10) : color.new(#dc3545, 10)
+    neutralColor = isDarkMode ? color.new(color.gray, 20) : color.new(color.gray, 40)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "ADX > 20", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, str.tostring(math.round(adx, 1)), text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, adxAbove20 ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "RSI", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, str.tostring(math.round(rsi, 1)), text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, rsiBullish ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "Supertrend", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, supertrendBuy ? "BUY" : "SELL", text_color=supertrendBuy ? positiveColor : negativeColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, supertrendBuy ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "Volume", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, volumeHigh ? "HIGH" : "LOW", text_color=volumeHigh ? positiveColor : neutralColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, volumeHigh ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "ATR", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, str.tostring(atr, "#.##"), text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, atrActive ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "MACD", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, macdBullish ? "BULL" : "BEAR", text_color=macdBullish ? positiveColor : negativeColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, macdBullish ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "SMAs", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, smaBullish ? "BULL" : "BEAR", text_color=smaBullish ? positiveColor : negativeColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, smaBullish ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    // Williams %R (only show if enabled)
+    if showWilliamsR
+        row += 1
+        table.cell(dashboard, 0, row, "W%R", text_color=dashboardTextColor, text_size=normalTextSize)
+        table.cell(dashboard, 1, row, str.tostring(math.round(wpr, 1)), text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_right)
+        table.cell(dashboard, 2, row, wprOversold ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "Fibonacci", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, inGoldenZone ? "GOLDEN" : "OUT", text_color=inGoldenZone ? positiveColor : neutralColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, inGoldenZone ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "OBV", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, obvBullish ? "BULL" : "BEAR", text_color=obvBullish ? positiveColor : negativeColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, obvBullish ? "✅" : "❌", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, "━━━━━", text_color=neutralColor, text_size=normalTextSize, text_halign=text.align_center)
+    table.cell(dashboard, 2, row, "", text_color=dashboardTextColor, text_size=normalTextSize)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "Bull Boost", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, str.tostring(bullBoosters) + "/15", text_color=bullBoosters >= activeMinBoosters ? positiveColor : neutralColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, bullBoosters >= activeMinBoosters ? "🚀" : "⏳", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "Bear Boost", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, str.tostring(bearBoosters) + "/15", text_color=bearBoosters >= activeMinBoosters ? negativeColor : neutralColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, bearBoosters >= activeMinBoosters ? "🚀" : "⏳", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    // Current Time Display
+    row += 1
+    currentTimeStr = str.format("{0,number,00}:{1,number,00}", barHour, barMinute)
+    marketStatus = not inSession ? "Closed" : sessionStart ? "Opening" : "Open"
+    var color statusColor = na
+    statusColor := not inSession ? negativeColor : sessionStart ? color.new(color.orange, 20) : positiveColor
+    table.cell(dashboard, 0, row, "Time", text_color=dashboardTextColor, text_size=normalTextSize)
+    table.cell(dashboard, 1, row, currentTimeStr, text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_right)
+    table.cell(dashboard, 2, row, marketStatus, text_color=statusColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    // Win rate (only show if enabled)
+    if showWinRate
+        row += 1
+        table.cell(dashboard, 0, row, "Win Rate", text_color=dashboardTextColor, text_size=normalTextSize)
+        winRateText = str.tostring(math.round(winRate, 1)) + "%"
+        var color winRateColor = na
+        winRateColor := winRate >= 60 ? positiveColor : winRate >= 40 ? color.new(color.yellow, 20) : negativeColor
+        table.cell(dashboard, 1, row, winRateText, text_color=winRateColor, text_size=normalTextSize, text_halign=text.align_right)
+        table.cell(dashboard, 2, row, str.tostring(winningSignals) + "/" + str.tostring(totalSignals), text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    // Inside Bar Section (only show if enabled)
+    if showInsideBarSignals
+        row += 1
+        table.cell(dashboard, 0, row, "", text_color=dashboardTextColor, text_size=normalTextSize)
+        table.cell(dashboard, 1, row, "━━━━━", text_color=neutralColor, text_size=normalTextSize, text_halign=text.align_center)
+        table.cell(dashboard, 2, row, "", text_color=dashboardTextColor, text_size=normalTextSize)
+        
+        row += 1
+        table.cell(dashboard, 0, row, "IB Status", text_color=dashboardTextColor, text_size=normalTextSize)
+        ibStatus = currentInsideBar ? "Active" : waitingForInsideBreakout ? "Waiting" : "None"
+        var color ibStatColor = na
+        ibStatColor := currentInsideBar ? color.new(color.yellow, 20) : waitingForInsideBreakout ? positiveColor : neutralColor
+        table.cell(dashboard, 1, row, ibStatus, text_color=ibStatColor, text_size=normalTextSize, text_halign=text.align_right)
+        table.cell(dashboard, 2, row, insideBarStrength == "STRONG INSIDE" ? "💪" : insideBarStrength == "WEAK INSIDE" ? "🤏" : "", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+        
+        row += 1
+        table.cell(dashboard, 0, row, "Total IB", text_color=dashboardTextColor, text_size=normalTextSize)
+        table.cell(dashboard, 1, row, str.tostring(totalInsideBars), text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_right)
+        strongPercentFloat = totalInsideBars > 0 ? (strongInsideBars * 100.0) / totalInsideBars : 0.0
+        strongPercentInt = int(math.round(strongPercentFloat))
+        table.cell(dashboard, 2, row, str.tostring(strongInsideBars) + " (" + str.tostring(strongPercentInt) + "%)", text_color=positiveColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    // AI Cloud Section (only show if enabled)
+    if showAICloud
+        row += 1
+        table.cell(dashboard, 0, row, "", text_color=dashboardTextColor, text_size=normalTextSize)
+        table.cell(dashboard, 1, row, "━━━━━", text_color=neutralColor, text_size=normalTextSize, text_halign=text.align_center)
+        table.cell(dashboard, 2, row, "", text_color=dashboardTextColor, text_size=normalTextSize)
+        
+        row += 1
+        table.cell(dashboard, 0, row, "AI Mode", text_color=dashboardTextColor, text_size=normalTextSize)
+        aiModeText = aiIsScalping ? "SCALP" : aiIsDayTrading ? "DAY" : aiSwingIntraday ? "SWING" : "STD"
+        var color aiModeColor = na
+        aiModeColor := aiIsScalping ? color.aqua : aiIsDayTrading ? color.yellow : aiSwingIntraday ? color.blue : neutralColor
+        table.cell(dashboard, 1, row, aiModeText, text_color=aiModeColor, text_size=normalTextSize, text_halign=text.align_right)
+        table.cell(dashboard, 2, row, aiInSession ? "📈" : "🔒", text_color=dashboardTextColor, text_size=normalTextSize, text_halign=text.align_center)
+        
+        row += 1
+        table.cell(dashboard, 0, row, "AI Trend", text_color=dashboardTextColor, text_size=normalTextSize)
+        aiTrendText = aiTrend == 1 ? "BULL" : aiTrend == -1 ? "BEAR" : "NEUTRAL"
+        var color aiTrendDisplayColor = na
+        aiTrendDisplayColor := aiTrend == 1 ? positiveColor : aiTrend == -1 ? negativeColor : neutralColor
+        table.cell(dashboard, 1, row, aiTrendText, text_color=aiTrendDisplayColor, text_size=normalTextSize, text_halign=text.align_right)
+        table.cell(dashboard, 2, row, str.tostring(math.round(aiShadowStrength, 1)), text_color=color.yellow, text_size=normalTextSize, text_halign=text.align_center)
+        
+        row += 1
+        table.cell(dashboard, 0, row, "AI Signal", text_color=dashboardTextColor, text_size=normalTextSize)
+        aiCurrentSignal = aiScalpBuy ? "⚡BUY" : aiScalpSell ? "⚡SELL" : 
+                         aiDayBuy ? "📊BUY" : aiDaySell ? "📊SELL" : 
+                         aiSwingBuy ? "🔄BUY" : aiSwingSell ? "🔄SELL" : 
+                         aiQuickExitBuy or aiQuickExitSell ? "🚪EXIT" : "⏳WAIT"
+        var color aiSignalColor = na
+        containsBuy = str.contains(aiCurrentSignal, "BUY")
+        containsSell = str.contains(aiCurrentSignal, "SELL")
+        containsExit = str.contains(aiCurrentSignal, "EXIT")
+        aiSignalColor := containsBuy ? positiveColor : containsSell ? negativeColor : containsExit ? color.orange : neutralColor
+        table.cell(dashboard, 1, row, aiCurrentSignal, text_color=aiSignalColor, text_size=normalTextSize, text_halign=text.align_right)
+        momentumIcon = aiMomentum > 0 ? "⬆" : aiMomentum < 0 ? "⬇" : "➡"
+        var color momentumColor = na
+        momentumColor := aiMomentum > 0 ? positiveColor : aiMomentum < 0 ? negativeColor : neutralColor
+        table.cell(dashboard, 2, row, momentumIcon, text_color=momentumColor, text_size=normalTextSize, text_halign=text.align_center)
+    
+    row += 1
+    table.cell(dashboard, 0, row, "DECISION", text_color=dashboardTextColor, text_size=headerTextSize, bgcolor=dashboardHeaderBg, text_halign=text.align_center)
+    
+    // Get Inside Bar decision if active
+    ibDecision = showInsideBarSignals and (currentInsideBar or waitingForInsideBreakout) ? getInsideBarDecision() : ""
+    
+    // Enhanced decision logic to include AI Cloud and Inside Bar signals
+    decision = bullCross ? "BUY" : bearCross ? "SELL" : 
+               aiScalpBuy ? "⚡AI BUY" : aiScalpSell ? "⚡AI SELL" :
+               aiDayBuy ? "📊AI BUY" : aiDaySell ? "📊AI SELL" :
+               aiSwingBuy ? "🔄AI BUY" : aiSwingSell ? "🔄AI SELL" :
+               insideBuyCondition ? "IB BUY ↑" : insideSellCondition ? "IB SELL ↓" :
+               boosterBuySignal ? "BOOST B" : boosterSellSignal ? "BOOST S" : 
+               currentInsideBar and ibDecision != "" ? ibDecision : 
+               waitingForInsideBreakout ? "IB READY" : 
+               aiQuickExitBuy or aiQuickExitSell ? "🚪EXIT" : "WAIT"
+    
+    var color decColor = na
+    decColor := (bullCross or boosterBuySignal or insideBuyCondition or aiScalpBuy or aiDayBuy or aiSwingBuy) ? positiveColor : 
+                (bearCross or boosterSellSignal or insideSellCondition or aiScalpSell or aiDaySell or aiSwingSell) ? negativeColor : 
+                (currentInsideBar or waitingForInsideBreakout) ? color.new(color.yellow, 20) : 
+                (aiQuickExitBuy or aiQuickExitSell) ? color.new(color.orange, 20) : neutralColor
+               
+    table.cell(dashboard, 1, row, decision, text_color=decColor, text_size=headerTextSize, bgcolor=color.new(decColor, 90), text_halign=text.align_center)
+    table.cell(dashboard, 2, row, "", text_color=dashboardTextColor, text_size=headerTextSize)
+
+// === DISCLAIMER WATERMARK ===
+if showDisclaimer
+    var table disclaimer = table.new(position.bottom_center, 1, 1, 
+                                   bgcolor=color.new(isDarkMode ? color.black : color.white, 50), 
+                                   border_width=1,
+                                   border_color=color.new(isDarkMode ? color.gray : color.black, 70))
+    if barstate.islast
+        var color disclaimerTextColor = na
+        disclaimerTextColor := isDarkMode ? color.new(color.white, 20) : color.new(color.black, 20)
+        table.cell(disclaimer, 0, 0, "⚠ FOR EDUCATIONAL & ANALYSIS PURPOSE ONLY - NO TRADE RECOMMENDATIONS ⚠", 
+                   text_color=disclaimerTextColor, text_size=size.small)
+
+// === ALERTS ===
+alertcondition(bullCross, title="EMA Buy Signal", message="EMA Bullish Crossover - BUY Signal")
+alertcondition(bearCross, title="EMA Sell Signal", message="EMA Bearish Crossover - SELL Signal")
+alertcondition(boosterBuySignal, title="7-Booster Buy", message="7-Booster Buy Signal Active!")
+alertcondition(boosterSellSignal, title="7-Booster Sell", message="7-Booster Sell Signal Active!")
+alertcondition(bullTrap or bearTrap, title="Trap Warning", message="Trap Detected!")
+alertcondition(exitLong or exitShort, title="Exit Signal", message="Exit Position Signal!")
+// Inside Bar Alerts
+alertcondition(insideBuyCondition, title="Inside Bar Buy Signal", message="Price broke above inside bar high - BUY signal")
+alertcondition(insideSellCondition, title="Inside Bar Sell Signal", message="Price broke below inside bar low - SELL signal")
+alertcondition(currentInsideBar and insideBarStrength == "STRONG INSIDE", title="Strong Inside Bar", message="Strong inside bar detected - high probability setup")
+alertcondition(currentInsideBar and insideBarStrength == "WEAK INSIDE", title="Weak Inside Bar", message="Weak inside bar detected - lower probability setup")
+// AI Cloud Alerts
+alertcondition(aiScalpBuy, title="⚡ AI SCALP BUY", message="⚡ AI SCALPING BUY SIGNAL!")
+alertcondition(aiScalpSell, title="⚡ AI SCALP SELL", message="⚡ AI SCALPING SELL SIGNAL!")
+alertcondition(aiDayBuy, title="📊 AI DAY BUY", message="📊 AI DAY TRADING BUY SIGNAL!")
+alertcondition(aiDaySell, title="📊 AI DAY SELL", message="📊 AI DAY TRADING SELL SIGNAL!")
+alertcondition(aiSwingBuy, title="🔄 AI SWING BUY", message="🔄 AI SWING INTRADAY BUY SIGNAL!")
+alertcondition(aiSwingSell, title="🔄 AI SWING SELL", message="🔄 AI SWING INTRADAY SELL SIGNAL!")
+alertcondition(aiQuickExitBuy or aiQuickExitSell, title="🚪 AI QUICK EXIT", message="🚪 AI QUICK EXIT SIGNAL!")
+alertcondition(aiHighVolume and aiIsIntraday, title="📈 AI HIGH VOLUME", message="📈 AI HIGH VOLUME DETECTED!")
